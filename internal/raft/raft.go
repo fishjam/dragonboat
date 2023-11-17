@@ -318,8 +318,9 @@ func (r *raft) describe() string {
 		plog.Panicf("%s failed to get term, %v", dn(r.clusterID, r.nodeID), err)
 	}
 	// first, last, term, committed, applied
-	fmtstr := "[f:%d,l:%d,t:%d,c:%d,a:%d] %s t%d"
+	fmtstr := "[s:%s, f:%d,l:%d,t:%d,c:%d,a:%d] %s t%d"
 	return fmt.Sprintf(fmtstr,
+		r.state.String(),
 		r.log.firstIndex(), r.log.lastIndex(), t, r.log.committed,
 		r.log.processed, dn(r.clusterID, r.nodeID), r.term)
 }
@@ -1614,6 +1615,7 @@ func (r *raft) handleLeaderCheckQuorum(m pb.Message) {
 }
 
 func (r *raft) handleLeaderPropose(m pb.Message) {
+	plog.Infof("%s handleLeaderPropose , msg=%+v", r.describe())
 	r.mustBeLeader()
 	if r.leaderTransfering() {
 		plog.Warningf("%s dropped proposal, leader transferring", r.describe())
@@ -1905,7 +1907,7 @@ func (r *raft) handleWitnessSnapshot(m pb.Message) {
 
 func (r *raft) handleFollowerPropose(m pb.Message) {
 	if r.leaderID == NoLeader {
-		plog.Warningf("%s dropped proposal, no leader", r.describe())
+		plog.Warningf("handleFollowerPropose %s dropped proposal, no leader", r.describe())
 		r.reportDroppedProposal(m)
 		return
 	}
@@ -1991,7 +1993,7 @@ func (r *raft) doubleCheckTermMatched(msgTerm uint64) {
 }
 
 func (r *raft) handleCandidatePropose(m pb.Message) {
-	plog.Warningf("%s dropped proposal, no leader", r.describe())
+	plog.Warningf("handleCandidatePropose %s dropped proposal, no leader", r.describe())
 	r.reportDroppedProposal(m)
 }
 

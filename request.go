@@ -997,6 +997,7 @@ func (p *pendingProposal) propose(session *client.Session,
 	cmd []byte, timeoutTick uint64) (*RequestState, error) {
 	key := p.nextKey(session.ClientID)
 	pp := p.shards[key%p.ps]
+	plog.Infof("enter pendingProposal.propose")
 	return pp.propose(session, cmd, key, timeoutTick)
 }
 

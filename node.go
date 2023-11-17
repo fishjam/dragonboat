@@ -376,6 +376,7 @@ func (n *node) OnDiskStateMachine() bool {
 func (n *node) proposeSession(session *client.Session,
 	timeout uint64) (*RequestState, error) {
 	if !n.initialized() {
+		plog.Warningf("proposeSession, !n.initialized()")
 		return nil, ErrClusterNotReady
 	}
 	if n.isWitness() {
@@ -397,6 +398,7 @@ func (n *node) payloadTooBig(sz int) bool {
 func (n *node) propose(session *client.Session,
 	cmd []byte, timeout uint64) (*RequestState, error) {
 	if !n.initialized() {
+		plog.Warningf("propose, !n.initialized()")
 		return nil, ErrClusterNotReady
 	}
 	if n.isWitness() {
@@ -413,6 +415,7 @@ func (n *node) propose(session *client.Session,
 
 func (n *node) read(timeout uint64) (*RequestState, error) {
 	if !n.initialized() {
+		plog.Warningf("read, !n.initialized()")
 		return nil, ErrClusterNotReady
 	}
 	if n.isWitness() {
@@ -427,6 +430,7 @@ func (n *node) read(timeout uint64) (*RequestState, error) {
 
 func (n *node) requestLeaderTransfer(nodeID uint64) error {
 	if !n.initialized() {
+		plog.Warningf("requestLeaderTransfer, !n.initialized()")
 		return ErrClusterNotReady
 	}
 	if n.isWitness() {
@@ -475,6 +479,7 @@ func (n *node) requestConfigChange(cct pb.ConfigChangeType,
 	nodeID uint64, target string, orderID uint64,
 	timeout uint64) (*RequestState, error) {
 	if !n.initialized() {
+		plog.Warningf("requestConfigChange, !n.initialized()")
 		return nil, ErrClusterNotReady
 	}
 	if n.isWitness() {
@@ -979,6 +984,7 @@ func (n *node) sendEnterQuiesceMessages() {
 				To:        nodeID,
 				ClusterId: n.clusterID,
 			}
+			plog.Infof("sendEnterQuiesceMessages: node=%s, msg=%+v", n.getRaftAddress(), msg)
 			n.sendRaftMessage(msg)
 		}
 	}
@@ -988,6 +994,9 @@ func (n *node) sendMessages(msgs []pb.Message) {
 	for _, msg := range msgs {
 		if !isFreeOrderMessage(msg) {
 			msg.ClusterId = n.clusterID
+			if msg.Type != pb.Heartbeat && msg.Type != pb.HeartbeatResp {
+				plog.Infof("sendMessages, node=%s, msg=%+v", n.getRaftAddress(), msg)
+			}
 			n.sendRaftMessage(msg)
 		}
 	}
@@ -997,6 +1006,7 @@ func (n *node) sendReplicateMessages(ud pb.Update) {
 	for _, msg := range ud.Messages {
 		if isFreeOrderMessage(msg) {
 			msg.ClusterId = n.clusterID
+			plog.Infof("sendReplicateMessages, node=%s, msg=%+v", n.getRaftAddress(), msg)
 			n.sendRaftMessage(msg)
 		}
 	}

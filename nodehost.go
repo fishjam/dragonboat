@@ -1454,6 +1454,7 @@ func (nh *NodeHost) propose(s *client.Session,
 		return nil, ErrClosed
 	}
 	v, ok := nh.getCluster(s.ClusterID)
+	plog.Infof("!!! getCluster id=%d return v.addr=%+s, ok=%+t", s.ClusterID, v.getRaftAddress(), ok)
 	if !ok {
 		return nil, ErrClusterNotFound
 	}

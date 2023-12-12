@@ -814,14 +814,16 @@ func (r *raft) broadcastReplicateMessage() {
 }
 
 func (r *raft) sendHeartbeatMessage(to uint64,
-	hint pb.SystemCtx, match uint64) {
+	hint pb.SystemCtx, match uint64, actives map[uint64]bool) {
 	commit := min(match, r.log.committed)
+	plog.Infof("sendHeartbeatMessage: from=%d, to=%d, actives=%+v", r.clusterID, to, actives)
 	r.send(pb.Message{
 		To:       to,
 		Type:     pb.Heartbeat,
 		Commit:   commit,
 		Hint:     hint.Low,
 		HintHigh: hint.High,
+		Actives:  actives,
 	})
 }
 
@@ -839,14 +841,18 @@ func (r *raft) broadcastHeartbeatMessage() {
 
 func (r *raft) broadcastHeartbeatMessageWithHint(ctx pb.SystemCtx) {
 	zeroCtx := pb.SystemCtx{}
+	activies := make(map[uint64]bool, len(r.remotes))
+	for id, rm := range r.remotes {
+		activies[id] = rm.active
+	}
 	for id, rm := range r.votingMembers() {
 		if id != r.nodeID {
-			r.sendHeartbeatMessage(id, ctx, rm.match)
+			r.sendHeartbeatMessage(id, ctx, rm.match, activies)
 		}
 	}
 	if ctx == zeroCtx {
 		for id, rm := range r.observers {
-			r.sendHeartbeatMessage(id, zeroCtx, rm.match)
+			r.sendHeartbeatMessage(id, zeroCtx, rm.match, activies)
 		}
 	}
 }
@@ -1252,7 +1258,6 @@ func (r *raft) setWitness(nodeID uint64, match uint64, next uint64) {
 	}
 }
 
-//
 // helper methods required for the membership change implementation
 //
 // p33-35 of the raft thesis describes a simple membership change protocol which
@@ -1281,7 +1286,6 @@ func (r *raft) setWitness(nodeID uint64, match uint64, next uint64) {
 // we use the following pendingConfigChange flag to help tracking whether there
 // is already a pending membership change entry in the log waiting to be
 // executed.
-//
 func (r *raft) setPendingConfigChange() {
 	r.pendingConfigChange = true
 }
@@ -1315,6 +1319,7 @@ func (r *raft) getPendingConfigChangeCount() int {
 //
 
 func (r *raft) handleHeartbeatMessage(m pb.Message) {
+	plog.Infof("receive handleHeartbeatMessage, msg=%+v", m)
 	r.log.commitTo(m.Commit)
 	r.send(pb.Message{
 		To:       m.From,

@@ -1038,6 +1038,7 @@ type Message struct {
 	Entries   []Entry     `protobuf:"bytes,11,rep,name=entries" json:"entries"`
 	Snapshot  Snapshot    `protobuf:"bytes,12,opt,name=snapshot" json:"snapshot"`
 	HintHigh  uint64      `protobuf:"varint,13,opt,name=hint_high,json=hintHigh" json:"hint_high"`
+	Actives   map[uint64]bool `protobuf:"bytes,14,rep,name=actives" json:"actives,omitempty" protobuf_key:"varint,1,opt,name=key" protobuf_val:"varint,2,opt,name=value"`
 }
 
 func (m *Message) Reset()         { *m = Message{} }
@@ -1162,6 +1163,13 @@ func (m *Message) GetHintHigh() uint64 {
 		return m.HintHigh
 	}
 	return 0
+}
+
+func (m *Message) GetActives() map[uint64]bool {
+	if m != nil {
+		return m.Actives
+	}
+	return nil
 }
 
 type ConfigChange struct {
@@ -2308,6 +2316,28 @@ func (m *Message) MarshalTo(dAtA []byte) (int, error) {
 	dAtA[i] = 0x68
 	i++
 	i = encodeVarintRaft(dAtA, i, uint64(m.HintHigh))
+
+	if len(m.Actives) > 0 {
+		for k, _ := range m.Actives {
+			dAtA[i] = 0x70
+			i++
+			v := m.Actives[k]
+			mapSize := 1 + sovRaft(uint64(k)) + 1 + 1
+			i = encodeVarintRaft(dAtA, i, uint64(mapSize))
+			dAtA[i] = 0x8
+			i++
+			i = encodeVarintRaft(dAtA, i, uint64(k))
+			dAtA[i] = 0x10
+			i++
+			if v {
+				dAtA[i] = 1
+			} else {
+				dAtA[i] = 0
+			}
+			i++
+		}
+	}
+
 	return i, nil
 }
 
@@ -2789,6 +2819,14 @@ func (m *Message) Size() (n int) {
 	l = m.Snapshot.Size()
 	n += 1 + l + sovRaft(uint64(l))
 	n += 1 + sovRaft(uint64(m.HintHigh))
+	if len(m.Actives) > 0 {
+		for k, v := range m.Actives {
+			_ = k
+			_ = v
+			mapEntrySize := 1 + sovRaft(uint64(k)) + 1 + 1
+			n += mapEntrySize + 1 + sovRaft(uint64(mapEntrySize))
+		}
+	}
 	return n
 }
 
@@ -5171,6 +5209,107 @@ func (m *Message) Unmarshal(dAtA []byte) error {
 					break
 				}
 			}
+		case 14:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Actives", wireType)
+			}
+			var msglen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return ErrIntOverflowRaft
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				msglen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if msglen < 0 {
+				return ErrInvalidLengthRaft
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return ErrInvalidLengthRaft
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			if m.Actives == nil {
+				m.Actives = make(map[uint64]bool)
+			}
+			var mapkey uint64
+			var mapvalue bool
+			for iNdEx < postIndex {
+				entryPreIndex := iNdEx
+				var wire uint64
+				for shift := uint(0); ; shift += 7 {
+					if shift >= 64 {
+						return ErrIntOverflowRaft
+					}
+					if iNdEx >= l {
+						return io.ErrUnexpectedEOF
+					}
+					b := dAtA[iNdEx]
+					iNdEx++
+					wire |= uint64(b&0x7F) << shift
+					if b < 0x80 {
+						break
+					}
+				}
+				fieldNum := int32(wire >> 3)
+				if fieldNum == 1 {
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRaft
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						mapkey |= uint64(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+				} else if fieldNum == 2 {
+					var mapvaluetemp int
+					for shift := uint(0); ; shift += 7 {
+						if shift >= 64 {
+							return ErrIntOverflowRaft
+						}
+						if iNdEx >= l {
+							return io.ErrUnexpectedEOF
+						}
+						b := dAtA[iNdEx]
+						iNdEx++
+						mapvaluetemp |= int(b&0x7F) << shift
+						if b < 0x80 {
+							break
+						}
+					}
+					mapvalue = bool(mapvaluetemp != 0)
+				} else {
+					iNdEx = entryPreIndex
+					skippy, err := skipRaft(dAtA[iNdEx:])
+					if err != nil {
+						return err
+					}
+					if skippy < 0 {
+						return ErrInvalidLengthRaft
+					}
+					if (iNdEx + skippy) > postIndex {
+						return io.ErrUnexpectedEOF
+					}
+					iNdEx += skippy
+				}
+			}
+			m.Actives[mapkey] = mapvalue
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := skipRaft(dAtA[iNdEx:])

@@ -166,6 +166,7 @@ message Message {
 	repeated Entry       entries     = 11 [(gogoproto.nullable) = false];
 	optional Snapshot    snapshot    = 12 [(gogoproto.nullable) = false];	
   optional uint64      hint_high   = 13 [(gogoproto.nullable) = false];
+  map<uint64, bool>    actives     = 14 [(gogoproto.nullable) = false];
 }
 
 message ConfigChange {

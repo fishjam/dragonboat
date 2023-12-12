@@ -2319,7 +2319,7 @@ func (m *Message) MarshalTo(dAtA []byte) (int, error) {
 
 	if len(m.Actives) > 0 {
 		for k, _ := range m.Actives {
-			dAtA[i] = 0x70
+			dAtA[i] = 0x72
 			i++
 			v := m.Actives[k]
 			mapSize := 1 + sovRaft(uint64(k)) + 1 + 1

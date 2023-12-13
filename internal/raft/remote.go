@@ -80,8 +80,8 @@ type remote struct {
 }
 
 func (r *remote) String() string {
-	return fmt.Sprintf("match:%d,next:%d,state:%s,si:%d",
-		r.match, r.next, r.state, r.snapshotIndex)
+	return fmt.Sprintf("match:%d,next:%d,state:%s,si:%d,active:%d",
+		r.match, r.next, r.state, r.snapshotIndex, r.active)
 }
 
 func (r *remote) clearSnapshotAck() {
@@ -218,5 +218,6 @@ func (r *remote) setActive() {
 }
 
 func (r *remote) setNotActive() {
+	plog.Errorf("setNotActive for remote=%s,", r.String())
 	r.active = false
 }

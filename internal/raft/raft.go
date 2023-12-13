@@ -349,6 +349,9 @@ func (r *raft) mustBeLeader() {
 
 func (r *raft) setLeaderID(leaderID uint64) {
 	r.leaderID = leaderID
+	if r.clusterID != 0 && leaderID != NoLeader {
+		plog.Infof("setLeaderID, clusterId=%d, nodeId=%d, leaderId=%d", r.clusterID, r.nodeID, leaderID)
+	}
 	if r.events != nil {
 		if (r.term == 0 && leaderID == NoLeader) ||
 			leaderID != r.prevLeader.LeaderID || r.term != r.prevLeader.Term {
@@ -388,6 +391,7 @@ func (r *raft) leaderHasQuorum() bool {
 	c := 0
 
 	for nid, member := range r.votingMembers() {
+		plog.Infof("leaderHasQuorum r.nodeId=%d, nid=%d, member=%+v", r.nodeID, nid, member)
 		if nid == r.nodeID || member.isActive() {
 			c++
 			member.setNotActive()
@@ -620,7 +624,9 @@ func (r *raft) leaderTick() {
 		r.abortLeaderTransfer()
 	}
 	r.heartbeatTick++
-	if r.timeForHearbeat() {
+	plog.Infof("leaderTick, heartbeatTick=%d, heartbeatTimeout=%d", r.heartbeatTick, r.heartbeatTimeout)
+	if r.timeForHearbeat() {  //r.heartbeatTick >= r.heartbeatTimeout
+		plog.Infof("timeoutForHearbeat, nodeId=%d, nodes=%+v", r.nodeID, r.nodes())
 		r.heartbeatTick = 0
 		r.Handle(pb.Message{
 			From: r.nodeID,
@@ -816,7 +822,7 @@ func (r *raft) broadcastReplicateMessage() {
 func (r *raft) sendHeartbeatMessage(to uint64,
 	hint pb.SystemCtx, match uint64, actives map[uint64]bool) {
 	commit := min(match, r.log.committed)
-	plog.Infof("sendHeartbeatMessage: from=%d, to=%d, actives=%+v", r.clusterID, to, actives)
+	plog.Infof("sendHeartbeatMessage: raft:%s, to=%d, actives=%+v", r.describe(), to, actives)
 	r.send(pb.Message{
 		To:       to,
 		Type:     pb.Heartbeat,
@@ -839,20 +845,29 @@ func (r *raft) broadcastHeartbeatMessage() {
 	}
 }
 
-func (r *raft) broadcastHeartbeatMessageWithHint(ctx pb.SystemCtx) {
-	zeroCtx := pb.SystemCtx{}
+func (r *raft) getRemoteActives() map[uint64]bool{
 	activies := make(map[uint64]bool, len(r.remotes))
 	for id, rm := range r.remotes {
-		activies[id] = rm.active
+		if r.nodeID == id{
+			activies[id] = true  //TODO: current dragonboat's imlement will not self to active
+		} else {
+			activies[id] = rm.active
+		}
 	}
+	return activies
+}
+
+func (r *raft) broadcastHeartbeatMessageWithHint(ctx pb.SystemCtx) {
+	zeroCtx := pb.SystemCtx{}
+	actives := r.getRemoteActives()
 	for id, rm := range r.votingMembers() {
 		if id != r.nodeID {
-			r.sendHeartbeatMessage(id, ctx, rm.match, activies)
+			r.sendHeartbeatMessage(id, ctx, rm.match, actives)
 		}
 	}
 	if ctx == zeroCtx {
 		for id, rm := range r.observers {
-			r.sendHeartbeatMessage(id, zeroCtx, rm.match, activies)
+			r.sendHeartbeatMessage(id, zeroCtx, rm.match, actives)
 		}
 	}
 }
@@ -940,6 +955,7 @@ func (r *raft) toFollowerState(term uint64, leaderID uint64,
 	if r.isWitness() {
 		panic("transitioning to follower from witness state")
 	}
+	plog.Infof("toFollowerState clusterId=%d, nodeId=%d, leaderId=%d", r.clusterID, r.nodeID, leaderID)
 	r.state = follower
 	r.reset(term, resetElectionTimeout)
 	r.setLeaderID(leaderID)
@@ -985,6 +1001,7 @@ func (r *raft) becomeCandidate() {
 	if r.isWitness() {
 		panic("witness is becoming candidate")
 	}
+	plog.Infof("becomeCandidate")
 	r.state = candidate
 	// 2nd paragraph section 5.2 of the raft paper
 	r.reset(r.term+1, true)
@@ -1319,7 +1336,8 @@ func (r *raft) getPendingConfigChangeCount() int {
 //
 
 func (r *raft) handleHeartbeatMessage(m pb.Message) {
-	plog.Infof("receive handleHeartbeatMessage, msg=%+v", m)
+	plog.Errorf("handleHeartbeatMessage, From=%d, commit=%d, r.remotes=%+v, activies=%+v",
+		m.From, m.Commit, r.remotes, m.Actives)
 	r.log.commitTo(m.Commit)
 	r.send(pb.Message{
 		To:       m.From,
@@ -1473,6 +1491,7 @@ func (r *raft) onMessageTermNotMatched(m pb.Message) bool {
 		if isLeaderMessage(m.Type) && r.checkQuorum {
 			// this corner case is documented in the following etcd test
 			// TestFreeStuckCandidateWithCheckQuorum
+			plog.Infof("send pb.NoOP to %d", m.From)
 			r.send(pb.Message{To: m.From, Type: pb.NoOP})
 		} else {
 			plog.Infof("%s ignored %s with lower term (%d) from %s",
@@ -1620,7 +1639,7 @@ func (r *raft) handleLeaderCheckQuorum(m pb.Message) {
 }
 
 func (r *raft) handleLeaderPropose(m pb.Message) {
-	plog.Infof("%s handleLeaderPropose , msg=%+v", r.describe())
+	plog.Infof("%s handleLeaderPropose", r.describe())
 	r.mustBeLeader()
 	if r.leaderTransfering() {
 		plog.Warningf("%s dropped proposal, leader transferring", r.describe())
@@ -1912,9 +1931,14 @@ func (r *raft) handleWitnessSnapshot(m pb.Message) {
 
 func (r *raft) handleFollowerPropose(m pb.Message) {
 	if r.leaderID == NoLeader {
-		plog.Warningf("handleFollowerPropose %s dropped proposal, no leader", r.describe())
-		r.reportDroppedProposal(m)
-		return
+		plog.Warningf("handleFollowerPropose %s dropped proposal, should dropped", r.describe())
+		if false {
+			//非 leader 时尝试获取任意一个 节点, 对其发送?
+		} else {
+			plog.Warningf("handleFollowerPropose %s dropped proposal, no leader", r.describe())
+			r.reportDroppedProposal(m)
+			return
+		}
 	}
 	m.To = r.leaderID
 	// the message might be queued by the transport layer, this violates the

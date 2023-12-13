@@ -708,7 +708,11 @@ func (s *StateMachine) setLastApplied(entries []pb.Entry) {
 }
 
 func (s *StateMachine) savingDummySnapshot(r SSRequest) bool {
-	return s.OnDiskStateMachine() && !r.Streaming() && !r.Exported()
+	isOnDisk := s.OnDiskStateMachine()
+	isStream := r.Streaming()
+	isExported := r.Exported()
+	check :=  isOnDisk && !isStream	&& !isExported
+	return check
 }
 
 func (s *StateMachine) checkSnapshotStatus(r SSRequest) error {
@@ -730,6 +734,7 @@ func (s *StateMachine) checkSnapshotStatus(r SSRequest) error {
 func (s *StateMachine) stream(sink pb.IChunkSink) error {
 	var err error
 	var meta SSMeta
+	plog.Infof("Enter StateMachine stream")
 	if err := func() error {
 		s.mu.RLock()
 		defer s.mu.RUnlock()
@@ -744,6 +749,7 @@ func (s *StateMachine) stream(sink pb.IChunkSink) error {
 func (s *StateMachine) concurrentSave(r SSRequest) (pb.Snapshot, SSEnv, error) {
 	var err error
 	var meta SSMeta
+	plog.Infof("enter StateMachine.concurrentSave")
 	if err := func() error {
 		s.mu.RLock()
 		defer s.mu.RUnlock()
@@ -761,6 +767,7 @@ func (s *StateMachine) concurrentSave(r SSRequest) (pb.Snapshot, SSEnv, error) {
 func (s *StateMachine) save(r SSRequest) (pb.Snapshot, SSEnv, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	plog.Infof("enter StateMachine.save")
 	meta, err := s.prepare(r)
 	if err != nil {
 		plog.Errorf("prepare snapshot failed %v", err)
@@ -770,17 +777,24 @@ func (s *StateMachine) save(r SSRequest) (pb.Snapshot, SSEnv, error) {
 }
 
 func (s *StateMachine) prepare(r SSRequest) (SSMeta, error) {
+	plog.Errorf("StateMachine prepare, r=%+v", r)
 	if err := s.checkSnapshotStatus(r); err != nil {
+		plog.Errorf("checkSnapshotStatus err=%+v", err)
 		return SSMeta{}, err
 	}
 	var err error
 	var ctx interface{}
-	if s.Concurrent() && !s.savingDummySnapshot(r) {
+	plog.Infof("StateMachine prepare, concurrent=%t", s.Concurrent())
+	if s.Concurrent() && s.savingDummySnapshot(r) { //fishjam change logical: !s.savingDummySnapshot(r) {
+		plog.Infof("before s.sm.Prepare()")
 		ctx, err = s.sm.Prepare()
 		if err != nil {
 			return SSMeta{}, err
 		}
+	} else {
+		plog.Warningf("StateMachine prepare fail???")
 	}
+
 	return s.getSSMeta(ctx, r)
 }
 

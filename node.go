@@ -658,9 +658,15 @@ func (n *node) saveSnapshotRequired(applied uint64) bool {
 		return false
 	}
 	index := n.ss.getIndex()
-	if n.pushedIndex <= n.config.SnapshotEntries+index ||
-		applied <= n.config.SnapshotEntries+index ||
-		applied <= n.config.SnapshotEntries+n.ss.getReqIndex() {
+	isLessPush := n.pushedIndex <= n.config.SnapshotEntries+index
+	isLessAppIndex := applied <= n.config.SnapshotEntries+index
+	isLessGetRequest := applied <= n.config.SnapshotEntries+n.ss.getReqIndex()
+
+	//plog.Infof("saveSnapshotRequired, applied=%d, pushedIndex=%d, config.SnapshotEntries=%d, getReqIndex=%d, isLessPush=%t, isLessAppIndex=%t, isLessGetRequest=%t",
+	//	applied, n.pushedIndex, n.config.SnapshotEntries, n.ss.getReqIndex(),
+	//	isLessPush, isLessAppIndex, isLessGetRequest)
+
+	if isLessPush || isLessAppIndex || isLessGetRequest {
 		return false
 	}
 	if n.isBusySnapshotting() {
@@ -1513,6 +1519,7 @@ func (n *node) notifyConfigChange() {
 	ci := &ClusterInfo{
 		ClusterID:         n.clusterID,
 		NodeID:            n.nodeID,
+		LeaderId:          n.leaderID,
 		IsLeader:          n.isLeader(),
 		IsObserver:        isObserver,
 		IsWitness:         isWitness,

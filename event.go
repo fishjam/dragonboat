@@ -103,6 +103,7 @@ func (e *raftEventListener) LeaderUpdated(info server.LeaderInfo) {
 			Term:      info.Term,
 			LeaderID:  info.LeaderID,
 		}
+		plog.Infof("LeaderUpdated add LeaderInfo: %+v", ui)
 		e.queue.addLeaderInfo(ui)
 	}
 }

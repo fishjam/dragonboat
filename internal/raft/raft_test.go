@@ -1540,7 +1540,8 @@ func TestSendHeartbeatMessage(t *testing.T) {
 	match := uint64(100)
 	r.remotes[2].match = match
 	r.log.committed = 200
-	r.sendHeartbeatMessage(2, hint, match)
+	actives := make(map[uint64]bool)
+	r.sendHeartbeatMessage(2, hint, match, actives)
 	msgs := r.msgs
 	if len(msgs) != 1 {
 		t.Fatalf("unexpected msgs list length")

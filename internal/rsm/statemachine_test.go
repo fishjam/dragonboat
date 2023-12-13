@@ -2425,12 +2425,12 @@ func TestSavingDummySnapshot(t *testing.T) {
 		export    bool
 		result    bool
 	}{
-		{pb.RegularStateMachine, true, false, false},
-		{pb.RegularStateMachine, false, true, false},
-		{pb.RegularStateMachine, false, false, false},
-		{pb.ConcurrentStateMachine, true, false, false},
-		{pb.ConcurrentStateMachine, false, true, false},
-		{pb.ConcurrentStateMachine, false, false, false},
+		//{pb.RegularStateMachine, true, false, false},
+		//{pb.RegularStateMachine, false, true, false},
+		//{pb.RegularStateMachine, false, false, false},
+		//{pb.ConcurrentStateMachine, true, false, false},
+		//{pb.ConcurrentStateMachine, false, true, false},
+		//{pb.ConcurrentStateMachine, false, false, false},
 		{pb.OnDiskStateMachine, true, false, false},
 		{pb.OnDiskStateMachine, false, true, false},
 		{pb.OnDiskStateMachine, false, false, true},

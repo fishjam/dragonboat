@@ -167,6 +167,8 @@ type ClusterInfo struct {
 	ClusterID uint64
 	// NodeID is the node ID of the Raft cluster node.
 	NodeID uint64
+	// LeaderId is the leader id of the Raft cluster node. if the value is 0, mean NoLeader
+	LeaderId uint64
 	// Nodes is a map of member node IDs to their Raft addresses.
 	Nodes map[uint64]string
 	// ConfigChangeIndex is the current config change index of the Raft node.

@@ -247,6 +247,7 @@ func (ds *NativeSM) GetHash() (uint64, error) {
 
 // Prepare makes preparation for concurrently taking snapshot.
 func (ds *NativeSM) Prepare() (interface{}, error) {
+	plog.Infof("enter NativeSM Prepare")
 	return ds.sm.Prepare()
 }
 
